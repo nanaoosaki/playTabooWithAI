@@ -64,7 +64,7 @@ def query_llm(plan_content, user_prompt=None, file_content=None):
     client = create_llm_client()
     
     # Combine prompts
-    system_prompt = """"""
+    system_prompt = """You are a high-level planning AI assistant working in a multi-agent context. Your role is to analyze project plans, provide strategic guidance, and help coordinate between planning and execution phases. Focus on practical, actionable advice while maintaining a strategic perspective."""
     
     combined_prompt = f"""You are working on a multi-agent context. The executor is the one who actually does the work. And you are the planner. Now the executor is asking you for help. Please analyze the provided project plan and status, then address the executor's specific query or request.
 
@@ -96,13 +96,12 @@ We will do the actual changes in the .cursorrules file.
     try:
         start_time = time.time()
         response = client.chat.completions.create(
-            model="o1",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": combined_prompt}
             ],
-            response_format={"type": "text"},
-            reasoning_effort="low"
+            temperature=0.7
         )
         thinking_time = time.time() - start_time
         
@@ -111,14 +110,14 @@ We will do the actual changes in the .cursorrules file.
             prompt_tokens=response.usage.prompt_tokens,
             completion_tokens=response.usage.completion_tokens,
             total_tokens=response.usage.total_tokens,
-            reasoning_tokens=response.usage.completion_tokens_details.reasoning_tokens if hasattr(response.usage, 'completion_tokens_details') else None
+            reasoning_tokens=None  # gpt-4o doesn't provide this
         )
         
-        # Calculate cost
+        # Calculate cost (updated for gpt-4o rates)
         cost = get_token_tracker().calculate_openai_cost(
             token_usage.prompt_tokens,
             token_usage.completion_tokens,
-            "o1"
+            "gpt-4o"
         )
         
         # Track the request
@@ -128,7 +127,7 @@ We will do the actual changes in the .cursorrules file.
             cost=cost,
             thinking_time=thinking_time,
             provider="openai",
-            model="o1"
+            model="gpt-4o"
         )
         get_token_tracker().track_request(api_response)
         
@@ -138,7 +137,7 @@ We will do the actual changes in the .cursorrules file.
         return None
 
 def main():
-    parser = argparse.ArgumentParser(description='Query OpenAI o1 model with project plan context')
+    parser = argparse.ArgumentParser(description='Query OpenAI GPT-4o model with project plan context')
     parser.add_argument('--prompt', type=str, help='Additional prompt to send to the LLM', required=False)
     parser.add_argument('--file', type=str, help='Path to a file whose content should be included in the prompt', required=False)
     args = parser.parse_args()

@@ -128,33 +128,335 @@ If needed, you can further use the `web_scraper.py` file to scrape the web page 
 - Use `gpt-4o` as the model name for OpenAI. It is the latest GPT model and has vision capabilities as well. `o1` is the most advanced and expensive model from OpenAI. Use it when you need to do reasoning, planning, or get blocked.
 - Use `claude-3-5-sonnet-20241022` as the model name for Claude. It is the latest Claude model and has vision capabilities as well.
 
-# Multi-Agent Scratchpad
+## Game Design Lessons
+- Display Format:
+  - Using emojis (🎮, 🤖, 📝) helps distinguish different parts of the game
+  - Clear section separators (===== and -----) improve readability
+  - Consistent formatting for round headers and results makes the game flow clear
+  - Color-coding would improve the experience (future enhancement)
 
-## Background and Motivation
+- Interactive Mode Design:
+  - Providing clear rules before each interaction improves user experience
+  - Showing remaining time during guessing creates urgency and engagement
+  - Separating AI's description in a distinct box makes it stand out
+  - Brief pauses between rounds (2 seconds) give time to process results
+  - Detailed game summary with round history helps track progress
+  - Supporting plural forms in guesses makes the game more forgiving
 
-(Planner writes: User/business requirements, macro objectives, why this problem needs to be solved)
-The executor has access to three tools: invoking 3rd party LLM, invoking web browser, invoking search engine.
+- Multi-turn Interaction Design:
+  - Time Management:
+    - Extended time limit (120 seconds) allows for multiple guesses and hints
+    - Continuous display of remaining time helps pace the interaction
+    - Time pressure creates engagement while allowing thoughtful guesses
+  
+  - Progressive Hint System:
+    - Initial description includes word type and category for context
+    - Up to 3 total hints per round (initial + 2 additional)
+    - Each hint builds upon previous guesses
+    - Different perspectives in each hint (general → specific)
+    - Hints acknowledge if player is getting closer
+  
+  - Guess Tracking:
+    - Previous guesses stored and passed to AI for context
+    - AI analyzes past guesses to provide more targeted hints
+    - System remembers all guesses within a round
+    - Feedback loop between human guesses and AI responses
 
-## Key Challenges and Analysis
+  - AI Description Strategy:
+    - First hint: Basic info (type, category) + general description
+    - Second hint: Based on first guess, offers new perspective
+    - Third hint: Most specific, focuses on distinguishing features
+    - Each description avoids taboo words and target word variations
+    - Structured format with clear separation of information types
 
-(Planner: Records of technical barriers, resource constraints, potential risks)
+- AI Agent Interaction:
+  - Anthropic (Claude) performs well as describer, giving clear and concise descriptions
+  - OpenAI (GPT) shows good semantic understanding as guesser
+  - Fast interaction times (2-3 seconds) keep the game engaging
+  - Semantic similarity in incorrect guesses shows reasonable AI reasoning
 
-## Verifiable Success Criteria
+- Human-AI Interaction:
+  - Clear display of target word and taboo words helps humans formulate descriptions
+  - AI guesser shows good understanding of analogies and metaphors in human descriptions
+  - AI makes reasonable guesses based on semantic similarity to the description
+  - Immediate feedback on taboo word usage helps humans refine their descriptions
+  - Game flow needs to handle edge cases (empty descriptions, timeouts) gracefully
 
-(Planner: List measurable or verifiable goals to be achieved)
+- Human-as-Describer Interaction Design:
+  - Time Management:
+    - Same 120-second time limit per round
+    - Display remaining time to help human pace their descriptions
+    - Allow time for human to type and refine descriptions
+  
+  - Skip System:
+    - Allow up to 5 skips per round for difficult/unfamiliar words
+    - Show remaining skip count before each word
+    - Get new word immediately after skip without ending round
+    - Keep round timer running during skips
+    - Prevent skipping when out of skips
+    - Skip counter persists within the same round
+  
+  - Multi-turn Description System:
+    - After incorrect AI guess, offer three options:
+      1. Try describing again with different words
+      2. Skip to a new word (if skips available)
+      3. End the round
+    - Each new description attempt keeps previous context
+    - Show AI's thought process and reasoning after each guess
+    - Provide feedback on what made the description unclear
+    - Allow multiple description attempts for same word
+  
+  - State Management:
+    - Track round number separately from word attempts
+    - Use is_skip flag to get new words without incrementing round
+    - Maintain game state during word transitions
+    - Clear previous guesses when getting new word
+    - Record successful attempts in round history
+  
+  - User Experience:
+    - Clear display of remaining skips and options
+    - Immediate feedback on taboo word usage
+    - AI analysis helps improve description strategy
+    - Flexible retry system reduces frustration
+    - Balance between challenge and accessibility
 
-## High-level Task Breakdown
-
-(Planner: List subtasks by phase, or break down into modules)
+- Multi-Description Handling:
+  - Description Tracking:
+    - Store all descriptions for the current word
+    - Track attempt numbers for context
+    - Clear description history when starting new word
+    - Join descriptions when recording round results
+  
+  - AI Guesser Prompt Design:
+    - Emphasize latest description at the top
+    - Show attempt number for context
+    - Include previous descriptions in structured format
+    - Adapt analysis based on attempt number
+  
+  - Progressive Analysis:
+    - First attempt: Focus solely on current description
+    - Subsequent attempts:
+      - Compare new description with previous ones
+      - Look for new clues or perspectives
+      - Identify patterns across descriptions
+      - Consider how descriptions complement each other
+  
+  - Feedback System:
+    - AI provides reasoning for each guess
+    - Suggests what additional information would help
+    - Notes which aspects were most helpful
+    - Guides human describer to more effective descriptions
 
 ## Current Status / Progress Tracking
+- Game Mechanics: Basic game loop implemented, including:
+  - Game state management
+  - Round timing
+  - Score tracking
+  - Description validation
+  - Guess processing
+- Word Database: Completed initial version using NLTK's WordNet
+- Technical Architecture: In progress with basic project structure
+- Testing and Validation: Basic testing implemented for game mechanics and word database
+- AI Agent Testing Results:
+  - Successfully tested AI vs AI gameplay with Anthropic (Describer) and OpenAI (Guesser)
+  - First test case: Word "contents" - Guesser made semantically similar but incorrect guess "ingredients"
+  - Second test case: Word "plate" - Perfect interaction with correct guess in 2.4 seconds
+  - Display format proved effective with clear separation of game phases and results
+- Human-AI Interaction Testing:
+  - Successfully implemented and tested human describer mode
+  - Test case: Word "puppet" with taboo words (creature, doll, slave, figure, tool)
+  - Human description focused on appearance and function, AI made semantically related but incorrect guess "mannequin"
+  - Validated the effectiveness of taboo word checking and description validation
+  - Added multi-turn interaction with AI guesser providing feedback
+  - Implemented real-time taboo word validation for human descriptions
 
-(Executor: Update completion status after each subtask. If needed, use bullet points or tables to show Done/In progress/Blocked status)
+- Recent Debugging Progress:
+  1. State Management Fix:
+     - Identified issue: Game state not properly maintained during transitions
+     - Root cause: State getting stuck in ROUND_ENDED or other states
+     - Fix: Added explicit state management in key transitions:
+       - Set state to DESCRIBING after getting new word
+       - Reset state before making guesses
+       - Maintain state during description storage
+     - Validation: Successfully tested with both human and AI modes
+
+  2. Mode Comparison Analysis:
+     - Working Mode (Human Describer):
+       - Clear state transitions
+       - Proper error handling
+       - Effective feedback loop
+       - Robust skip system
+     - Applied Learnings to AI Describer Mode:
+       - Mirrored state management pattern
+       - Added similar validation checks
+       - Implemented comparable feedback system
+
+  3. Testing Results:
+     - Human Describer Mode:
+       - Successfully handles skips (5 per round)
+       - Validates descriptions for taboo words
+       - Provides clear feedback on invalid inputs
+       - Maintains game state correctly
+     - AI Describer Mode:
+       - Now properly manages state transitions
+       - Handles description generation errors
+       - Provides clear hints and feedback
+       - Supports multiple guess attempts
+
+- Recent Improvements:
+  1. Multi-Description Enhancement:
+     - Added tracking of all descriptions for current word
+     - Improved AI guesser prompt to handle multiple descriptions
+     - Enhanced feedback system for progressive descriptions
+     - Implemented attempt number tracking for context
+
+  2. Description Analysis:
+     - AI now compares new descriptions with previous ones
+     - Looks for patterns across multiple descriptions
+     - Provides more targeted feedback based on attempt history
+     - Better guides the human describer to effective descriptions
+
+  3. State Management:
+     - Properly maintains description history during rounds
+     - Clears history appropriately on skips and new rounds
+     - Handles transitions between description attempts smoothly
+     - Records comprehensive round history with all descriptions
 
 ## Next Steps and Action Items
-
-(Planner: Specific arrangements for the Executor)
+1. Enhance Human-as-Describer Mode:
+   - Add real-time taboo word validation during typing
+   - Implement AI feedback system for guesses
+   - Add description improvement suggestions
+   - Create tutorial mode for new human describers
+2. Improve AI Guessing:
+   - Enhance context understanding across multiple descriptions
+   - Add explanation of guess reasoning
+   - Implement semantic similarity scoring
+   - Track successful description patterns
+3. Add Teaching Features:
+   - Create description strategy guide
+   - Show examples of effective descriptions
+   - Provide word-type specific tips
+   - Add post-round learning insights
 
 ## Executor's Feedback or Assistance Requests
+- Would you like me to proceed with implementing the AI agents next, or should we focus on adding more comprehensive testing first?
+- For the AI agents, should we use the local LLM capabilities or external APIs?
 
-(Executor: Write here when encountering blockers, questions, or need for more information during execution)
+## Technical Architecture
+
+- Project Structure:
+  - Core Game Logic:
+    - `src/taboo_game/game.py`: Central game state and logic
+    - `src/taboo_game/cli.py`: Command-line interface and user interaction
+    - `src/taboo_game/utils/word_database.py`: Word management using NLTK WordNet
+  
+  - Agent System:
+    - `src/taboo_game/agents/base.py`: Abstract base agent class
+    - `src/taboo_game/agents/describer.py`: AI agent for generating descriptions
+    - `src/taboo_game/agents/guesser.py`: AI agent for making guesses
+  
+  - External Tools:
+    - `tools/llm_api.py`: LLM integration (OpenAI, Anthropic, etc.)
+    - `tools/plan_exec_llm.py`: Planning and execution coordination
+    - `tools/web_scraper.py`, `tools/search_engine.py`: Web utilities
+
+- Game Modes:
+  1. AI vs AI: Both describer and guesser are AI agents
+  2. Human Describer vs AI Guesser: Human describes, AI guesses
+  3. Human Guesser vs AI Describer: AI describes, human guesses
+
+- State Management:
+  - Game States (GameState Enum):
+    - INITIALIZED: Game object created
+    - ROUND_STARTING: Beginning of each round
+    - DESCRIBING: Active description phase
+    - GUESSING: Active guessing phase
+    - ROUND_ENDED: Current round complete
+    - GAME_OVER: All rounds complete
+
+  - Round Results (RoundResult Enum):
+    - CORRECT_GUESS: Successful guess
+    - INCORRECT_GUESS: Wrong guess
+    - TABOO_WORD_USED: Description violated rules
+    - TIME_UP: Round time limit reached
+    - SKIPPED: Player chose to skip
+
+  - Persistent State:
+    - Current round number
+    - Score tracking
+    - Round history
+    - Time management
+    - Word and taboo words
+    - Description history
+    - Previous guesses
+
+- Input/Output Flow:
+  1. Command Line Arguments:
+     - Game mode selection
+     - Round time limits
+     - Number of rounds
+     - Word length constraints
+     - AI provider selection
+  
+  2. User Interaction:
+     - Clear formatting with emojis and separators
+     - Consistent status display (time, score, round)
+     - Multi-turn conversation handling
+     - Error handling and feedback
+  
+  3. State Transitions:
+     - Mode-specific game loops
+     - Skip and retry mechanisms
+     - Round progression logic
+     - Score and history tracking
+
+- External Dependencies:
+  - NLTK WordNet for word database
+  - OpenAI GPT-4o for guessing
+  - Anthropic Claude for describing
+  - Python environment management
+  - Standard libraries for CLI
+
+## Debugging Lessons
+- State Management:
+  - Always explicitly set game state before critical operations
+  - Validate state transitions with assertions or checks
+  - Keep state management consistent across different modes
+  - Document state flow in comments for complex transitions
+
+- Error Handling:
+  - Add descriptive error messages for each failure case
+  - Include context in error messages (current state, expected state)
+  - Log state transitions for debugging
+  - Handle edge cases (timeouts, invalid inputs) gracefully
+
+- Testing Strategy:
+  - Test each mode independently before integration
+  - Use working modes as reference for debugging
+  - Compare state flows between different modes
+  - Add debug logging for state transitions
+
+- Code Organization:
+  - Keep state management logic centralized
+  - Use consistent patterns across similar features
+  - Document complex state machines
+  - Add debug information to stderr while keeping stdout clean
+
+- User Experience:
+  - Provide clear feedback for all actions
+  - Show game state visually (emojis, formatting)
+  - Make error messages actionable
+  - Include context in prompts and feedback
+
+- Description Handling:
+  - Track all descriptions for current word in both game and agent
+  - Clear description history at appropriate state transitions
+  - Maintain proper order of descriptions for context
+  - Handle edge cases (skips, timeouts) gracefully
+
+- AI Interaction:
+  - Structure prompts for clear progression of information
+  - Adapt analysis based on attempt number
+  - Provide context-aware feedback
+  - Guide users toward more effective descriptions
